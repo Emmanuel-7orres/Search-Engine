@@ -29,7 +29,7 @@ def main():
         linkList = os.listdir(directory + "/" + dir)
         for link in linkList:
             indexer(directory + "/" + dir + "/" + link, Index)
-    print(Index)
+    print(Index.keys())
             
 
 
