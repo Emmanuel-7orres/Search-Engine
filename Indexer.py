@@ -3,13 +3,11 @@ import time
 import json
 import re
 from math import log10
-from nltk.stem import PorterStemmer, WordNetLemmatizer
+from nltk.stem import WordNetLemmatizer
 from collections import defaultdict
 
 def indexer(link, Index, links, Tfs):
-    ps = PorterStemmer()
     lm = WordNetLemmatizer()
-
     with open(link, "r") as jason:
         text = json.load(jason)
         tokens = re.findall("([a-zA-Z0-9]+)", text["content"])
@@ -36,11 +34,13 @@ def indexer(link, Index, links, Tfs):
 
 
 def main():
+    start_time = time.time()
     Index = defaultdict(set)
-    Tfs = defaultdict(defaultdict) #Tfs[url][word] = Tf
+    typeTf = defaultdict(int)
+    Tfs = defaultdict(lambda: defaultdict(int)) #Tfs[url][word] = Tf
     Tf_IdF = defaultdict(int)
     links = []
-    directory = "ANALYST"
+    directory = "DEV" #ANALYST
     drList = os.listdir(directory)
     for dir in drList:
         linkList = os.listdir(directory + "/" + dir)
@@ -71,6 +71,7 @@ def main():
             linkList.write("\n")
     print(len(links))
     print(len(Index))
+    print(time.time() - start_time)
             
 
 
