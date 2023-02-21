@@ -7,7 +7,7 @@ from nltk.stem import WordNetLemmatizer
 from collections import defaultdict
 
 # indexer function handles reading json files with parameters link, Index, links, Tfs
-def indexer(link, Index, links, Tfs):
+def indexer(link, Index, links):
     # Lemmatizer object to stem unnecessary words 
     lm = WordNetLemmatizer()
     with open(link, "r") as jason:
@@ -33,32 +33,42 @@ def indexer(link, Index, links, Tfs):
                 if lnkIdx in Index[word]:
                     continue
                 else:
-                    Index[word].add(lnkIdx)
+                    Tf = tokens.count(word) / len(tokens)
+                    Index[word][lnkIdx] = Tf
             else:
                 # if current url is not in list links, then we divide the number of times word appears in doc/ total number of terms in doc to get the TF value
-                # then we add the current word with the current word with the TF value
                 Tf = tokens.count(word) / len(tokens)
-                Tfs[text["url"]][word] = Tf
+        
                 # Also appending the current link into the list links
-                # Adding the word in the dictionary and adding to the set with integer index of the url from list links
+                # Adding the word in the dictionary and adding the docId with Term frequency
                 links.append(text["url"])
-                Index[word].add(len(links))
+                Index[word][len(links)] = Tf
 
 
 def main():
     # Definition of link, Index, links, Tfs, directory
     # link: the directory of the folder of folder of json files
-    # Index: a defaultdict with keys of strings and values of a set of integers 
+    # Index: a defaultdict with keys of terms and values of docId and Term Frequency
     # links: a list of all the urls we have visited
-    # Tfs: a defaultdict of defaultdict of int to store url and words in that url and the TF value
     # directory: the name of the directory folder
     # drList: grabbing all the folders within that directory
     start_time = time.time()
-    Index = defaultdict(set)
-    Tfs = defaultdict(lambda: defaultdict(int)) #Tfs[url][word] = Tf
+    Index = defaultdict(lambda: defaultdict(float))
     links = []
-    directory = "DEV" #ANALYST
+    directory = "DEV" 
     drList = os.listdir(directory)
+
+
+
+    # counting the total number of links/docs we are going to index 
+    # tracker for how many docs in our index and tracker for which index file we are on 
+    index_number = "1"
+    total_links = 0
+    Index_links_size = 0
+    for dir in drList:
+        linkList = os.listdir(directory + "/" + dir)
+        total_links += len(linkList)
+
 
     # Looping through the list of folder from the directory
     # calling os.listdir to open those folders to get the json files
@@ -66,39 +76,52 @@ def main():
     for dir in drList:
         linkList = os.listdir(directory + "/" + dir)
         for link in linkList:
-            indexer(directory + "/" + dir + "/" + link, Index, links, Tfs)
+            if (Index_links_size > total_links / 3):
+                # if Index size > 1/3 of the total number of documents
+                # opens the Index.txt and writes each word and the set of indexs
+                with open("Index" + index_number + ".txt", "w+") as Inverted:
+                    for word in Index:
+                        Inverted.write(word)
+                        Inverted.write(",")
+                        for idx in Index[word]:
+                            Inverted.write(str(idx))
+                            Inverted.write("-")
+                        Inverted.write("\n")
+                        
 
-    # TF = num of times word appears in doc/ total number of terms in doc   
-    # IDF = log(number of documents/number of documents that have the word)
-    # tf-idf = TF * IDF
-    # Loops thorugh the TF dictionary and calculates the idf value 
-    # then multiples the tf value after calling indexer with the idf we calculate 
-    for word in Index.keys():
-        Idf = log10(len(links) / len(Index[word]))
-        for urls in Index[word]:
-            Tfs[urls][word] = Tfs[urls][word] * Idf
+                # reset Index and update counters
+                Index_links_size = 0      
+                index_number = str(int(index_number) + 1)
+                Index = defaultdict(lambda: defaultdict(float))
+                indexer(directory + "/" + dir + "/" + link, Index, links)
+            else:
+                indexer(directory + "/" + dir + "/" + link, Index, links)
+                Index_links_size += 1
 
-    # opens the Index.txt and writes each word and the set of indexs
-    with open("Index.txt", "w+") as Inverted:
-        for word in Index:
-            Inverted.write(word)
-            Inverted.write(",")
-            for idx in Index[word]:
-                Inverted.write(str(idx))
-                Inverted.write("-")
-            Inverted.write("\n")
-            
+
     # opens the Links.txt and writes each url 
     with open("Links.txt", "w+") as linkList:
         for link in links:
             linkList.write(str(link))
             linkList.write("\n")
 
+    # TF = num of times word appears in doc/ total number of terms in doc   
+    # IDF = log(number of documents/number of documents that have the word)
+    # tf-idf = TF * IDF
+    # Loops thorugh the TF dictionary and calculates the idf value 
+    # then multiples the tf value after calling indexer with the idf we calculate 
+    # for word in Index.keys():
+    #     Idf = log10(len(links) / len(Index[word]))
+    #     for urls in Index[word]:
+    #         Tfs[urls][word] = Tfs[urls][word] * Idf
+
+
+
     # prints the number of unique links
     # prints the total number of words
-    print(len(links))
-    print(len(Index))
-    print(time.time() - start_time)
+    # print(len(links))
+    # print(len(Index))
+    # print(time.time() - start_time)
             
 
 
