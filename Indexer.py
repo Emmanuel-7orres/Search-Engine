@@ -2,7 +2,7 @@ import os
 import time
 import json
 import re
-from math import log10
+import math
 from nltk.stem import WordNetLemmatizer
 from collections import defaultdict
 
@@ -22,6 +22,7 @@ def indexer(link, Index, links):
             word = lm.lemmatize(word)
             if not word.isascii():
                 continue
+            var = word
             if not word.islower():
                 word = word.lower()
             
@@ -33,7 +34,7 @@ def indexer(link, Index, links):
                 if lnkIdx in Index[word]:
                     continue
                 else:
-                    Tf = tokens.count(word) / len(tokens)
+                    Tf = tokens.count(var) / len(tokens)
                     Index[word][lnkIdx] = Tf
             else:
                 # if current url is not in list links, then we divide the number of times word appears in doc/ total number of terms in doc to get the TF value
@@ -76,16 +77,19 @@ def main():
     for dir in drList:
         linkList = os.listdir(directory + "/" + dir)
         for link in linkList:
-            if (Index_links_size > total_links / 3):
+            if (Index_links_size > math.ceil(total_links / 3)):
                 # if Index size > 1/3 of the total number of documents
                 # opens the Index.txt and writes each word and the set of indexs
                 with open("Index" + index_number + ".txt", "w+") as Inverted:
-                    for word in Index:
+                    for word in sorted(Index.keys()):
                         Inverted.write(word)
                         Inverted.write(",")
-                        for idx in Index[word]:
+                        for idx, tf in Index[word].items():
                             Inverted.write(str(idx))
-                            Inverted.write("-")
+                            Inverted.write(":")
+                            Inverted.write(str(tf))
+                            Inverted.write("/")
+                        
                         Inverted.write("\n")
                         
 
@@ -97,6 +101,18 @@ def main():
             else:
                 indexer(directory + "/" + dir + "/" + link, Index, links)
                 Index_links_size += 1
+
+    with open("Index" + "3" + ".txt", "w+") as Inverted:
+        for word in sorted(Index.keys()):
+            Inverted.write(word)
+            Inverted.write(",")
+            for idx, tf in Index[word].items():
+                Inverted.write(str(idx))
+                Inverted.write(":")
+                Inverted.write(str(tf))
+                Inverted.write("/")
+            
+            Inverted.write("\n")
 
 
     # opens the Links.txt and writes each url 
@@ -121,7 +137,7 @@ def main():
     # prints the total number of words
     # print(len(links))
     # print(len(Index))
-    # print(time.time() - start_time)
+    print(time.time() - start_time)
             
 
 
