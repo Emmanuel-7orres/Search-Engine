@@ -5,45 +5,130 @@ import re
 import math
 from nltk.stem import WordNetLemmatizer
 from collections import defaultdict
+from bs4 import BeautifulSoup
+
+def writeIndextoFile(Index, part_num):
+    #create file index for 0-9
+    with open("IndexSeek.txt", "a+") as Seek:
+
+
+        with open("IndexPart" + str(part_num) + ".txt", "w+") as Part:
+            
+            for i in range(10):
+                for term in Index[str(i)].keys():
+                    termstring = term + ","
+                    for tup in Index[str(i)][term]:
+                        termstring += str(tup[0])
+                        termstring += "|"
+                        termstring += str(tup[1])
+                        termstring += ";"
+                    Part.write(termstring)
+                    Part.write("\n")
+
+            current_position = Part.tell()
+            Seek.write("Part" + str(part_num) + " atoi:" + str(current_position) + "\n")
+            for i in range(97, 106, 1):
+                letter = chr(i)
+                for term in Index[letter].keys():
+                    termstring = term + ","
+                    for tup in Index[chr(i)][term]:
+                        termstring += str(tup[0])
+                        termstring += "|"
+                        termstring += str(tup[1])
+                        termstring += ";"
+                    Part.write(termstring)
+                    Part.write("\n")
+
+            current_position = Part.tell()
+            Seek.write("Part" + str(part_num) + " jtor:" + str(current_position) + "\n")
+            for i in range(106, 115, 1):
+                letter = chr(i)
+                for term in Index[letter].keys():
+                    termstring = term + ","
+                    for tup in Index[chr(i)][term]:
+                        termstring += str(tup[0])
+                        termstring += "|"
+                        termstring += str(tup[1])
+                        termstring += ";"
+                    Part.write(termstring)
+                    Part.write("\n")
+
+            current_position = Part.tell()
+            Seek.write("Part" + str(part_num) + " stoz:" + str(current_position) + "\n")
+            for i in range(115, 123, 1):
+                letter = chr(i)
+                for term in Index[letter].keys():
+                    termstring = term + ","
+                    for tup in Index[chr(i)][term]:
+                        termstring += str(tup[0])
+                        termstring += "|"
+                        termstring += str(tup[1])
+                        termstring += ";"
+                    Part.write(termstring)
+                    Part.write("\n")
+    
 
 # indexer function handles reading json files with parameters link, Index, links, Tfs
-def indexer(link, Index, links):
-    # Lemmatizer object to stem unnecessary words 
-    lm = WordNetLemmatizer()
-    with open(link, "r") as jason:
-        # opening the json in the folder 
-        # calling load to convert the json file into a dictionary 
-        # tokens: a list of all all alphanumeric sequences in the dataset
-        # called lemmatize to stem each word in the list
-        # checked if each word is ascii and covert each word to lower case characters
-        text = json.load(jason)
-        tokens = re.findall("([a-zA-Z0-9]+)", text["content"])
-        for word in set(tokens):
-            word = lm.lemmatize(word)
-            if not word.isascii():
-                continue
-            var = word
-            if not word.islower():
-                word = word.lower()
-            
-            
-            if text["url"] in links:
-                # if current url is in the list links and the index of current link is also the set of integers,
-                # we move on to the next iteration, otherwise we add the index of the url to the set of that word
-                lnkIdx = links.index(text["url"])
-                if lnkIdx in Index[word]:
-                    continue
-                else:
-                    Tf = tokens.count(var) / len(tokens)
-                    Index[word][lnkIdx] = Tf
-            else:
-                # if current url is not in list links, then we divide the number of times word appears in doc/ total number of terms in doc to get the TF value
-                Tf = tokens.count(word) / len(tokens)
+def indexer(ListLinks, Index, links):
+    counter = 0
+    part_counter = 1
+    link_counter = 0
+    for link in ListLinks:
         
-                # Also appending the current link into the list links
-                # Adding the word in the dictionary and adding the docId with Term frequency
-                links.append(text["url"])
-                Index[word][len(links)] = Tf
+        # Lemmatizer object to stem unnecessary words 
+        lm = WordNetLemmatizer()
+        with open(link, "r") as jason:
+            
+            # opening the json in the folder 
+            # calling load to convert the json file into a dictionary 
+            # tokens: a list of all all alphanumeric sequences in the dataset
+            # called lemmatize to stem each word in the list
+            # checked if each word is ascii and covert each word to lower case characters
+            text = json.load(jason)
+
+            soup = BeautifulSoup(text["content"], 'lxml')
+            tokens = re.findall("([a-zA-Z0-9]+)", soup.get_text().lower())
+            #print(link)
+            
+            for word in set(tokens):
+                
+                word = lm.lemmatize(word)
+                
+                if not word.isascii():
+                    continue
+
+                first_letter = word[0]
+                if first_letter not in Index:
+                    Index[first_letter][word] = []
+                
+                if text["url"] in links:
+                    # if current url is in the list links and the index of current link is also the set of integers,
+                    # we move on to the next iteration, otherwise we add the index of the url to the set of that word
+                    linkIdx = links.index(text["url"]) + 1
+                
+                    Tf = tokens.count(word) / len(tokens)
+                    Index[first_letter][word].append((linkIdx, Tf))
+                    counter+=1
+                else:
+                    # if current url is not in list links, then we divide the number of times word appears in doc/ total number of terms in doc to get the TF value
+                    Tf = tokens.count(word) / len(tokens)
+            
+                    # Also appending the current link into the list links
+                    # Adding the word in the dictionary and adding the docId with Term frequency
+                    links.append(text["url"])
+                    
+                    # Reminder docid 1 is referring to line 1 in linkstxt
+                    Index[first_letter][word].append((len(links), Tf))
+                    counter+=1
+
+        link_counter+=1
+        #print(counter)
+
+        if link_counter > math.ceil(len(ListLinks)/3):
+            writeIndextoFile(Index, part_counter)
+            Index.clear()
+            part_counter += 1
+            link_counter = 0
 
 
 def main():
@@ -54,72 +139,43 @@ def main():
     # directory: the name of the directory folder
     # drList: grabbing all the folders within that directory
     start_time = time.time()
-    Index = defaultdict(lambda: defaultdict(float))
+    Index = defaultdict(lambda: defaultdict(list))
+    
+    #Creating faster access time through multiple dictionary indexes containing a-z 0-9
+    
+
     links = []
     directory = "DEV" 
     drList = os.listdir(directory)
-
-
-
-    # counting the total number of links/docs we are going to index 
-    # tracker for how many docs in our index and tracker for which index file we are on 
-    index_number = "1"
-    total_links = 0
-    Index_links_size = 0
-    for dir in drList:
-        linkList = os.listdir(directory + "/" + dir)
-        total_links += len(linkList)
-
-
+    ListLinks = []
     # Looping through the list of folder from the directory
-    # calling os.listdir to open those folders to get the json files
+    # call os.listdir to open those folders to get the json files
     # looping through the json files and calling indexer function above
     for dir in drList:
         linkList = os.listdir(directory + "/" + dir)
         for link in linkList:
-            if (Index_links_size > math.ceil(total_links / 3)):
-                # if Index size > 1/3 of the total number of documents
-                # opens the Index.txt and writes each word and the set of indexs
-                with open("Index" + index_number + ".txt", "w+") as Inverted:
-                    for word in sorted(Index.keys()):
-                        Inverted.write(word)
-                        Inverted.write(",")
-                        for idx, tf in Index[word].items():
-                            Inverted.write(str(idx))
-                            Inverted.write(":")
-                            Inverted.write(str(tf))
-                            Inverted.write("/")
-                        
-                        Inverted.write("\n")
-                        
+            #indexer(directory + "/" + dir + "/" + link, Index, links)
+            ListLinks.append(directory + "/" + dir + "/" + link)
 
-                # reset Index and update counters
-                Index_links_size = 0      
-                index_number = str(int(index_number) + 1)
-                Index = defaultdict(lambda: defaultdict(float))
-                indexer(directory + "/" + dir + "/" + link, Index, links)
-            else:
-                indexer(directory + "/" + dir + "/" + link, Index, links)
-                Index_links_size += 1
+    
+    indexer(ListLinks, Index, links)
 
-    with open("Index" + "3" + ".txt", "w+") as Inverted:
-        for word in sorted(Index.keys()):
-            Inverted.write(word)
-            Inverted.write(",")
-            for idx, tf in Index[word].items():
-                Inverted.write(str(idx))
-                Inverted.write(":")
-                Inverted.write(str(tf))
-                Inverted.write("/")
-            
-            Inverted.write("\n")
-
+    writeIndextoFile(Index, 3)
 
     # opens the Links.txt and writes each url 
     with open("Links.txt", "w+") as linkList:
+        link_counter = 1
         for link in links:
+            if link_counter % 100 == 0:
+                with open("LinksSeek.txt", "a+") as Seek:
+                    Seek.write(str(link_counter) + ":" + str(linkList.tell()) + "\n")
             linkList.write(str(link))
             linkList.write("\n")
+            link_counter += 1
+
+
+    with open("TotalLinks.txt", "w+") as total:
+        total.write(str(len(links)))
 
     # TF = num of times word appears in doc/ total number of terms in doc   
     # IDF = log(number of documents/number of documents that have the word)
