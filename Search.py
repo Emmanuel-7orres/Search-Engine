@@ -3,13 +3,13 @@ from collections import defaultdict
 
 import time
 
-def find_seek_pos(IndexSeek, start_range, part_num):
+def find_seek_pos(IndexSeek, letter, part_num):
     # returns the byte position to seek for start_range and Idx Part number
     IndexSeek.seek(0)
     for line in IndexSeek:
         
-        if (part_num == line[4] and start_range in line): # Part# 4th index rep num  
-            return int(line.split(":")[1])
+        if (part_num == line[4] and letter == line[6]): # Part# 4th index rep num  
+            return int(line.split(" ")[2])
 
 def letter_range(first_letter_q):
     first_letter_q = ord(first_letter_q)
@@ -63,12 +63,11 @@ def Search():
         for q in queryList:
             postings = []
             first_letter_q = q[0]
-            # determine whether first letter is 0-9 a-i j-r s-z
-            start_range = letter_range(first_letter_q)
+            # determine whether first letter is 0-9 a-z
             # find all seek positions for each part for the starting range
-            Seek_position_part1 = find_seek_pos(IndexSeek, start_range, "1") 
-            Seek_position_part2 = find_seek_pos(IndexSeek, start_range, "2") 
-            Seek_position_part3 = find_seek_pos(IndexSeek, start_range, "3") 
+            Seek_position_part1 = find_seek_pos(IndexSeek, first_letter_q, "1") 
+            Seek_position_part2 = find_seek_pos(IndexSeek, first_letter_q, "2") 
+            Seek_position_part3 = find_seek_pos(IndexSeek, first_letter_q, "3") 
             
             # posting is posting for 1 term the q of queryList, combination of posting from 3 parts
             posting = []
@@ -79,6 +78,10 @@ def Search():
             postings3 = searchIndexPart(Idx3, Seek_position_part3, q)
             posting += postings3
 
+            # DEBUG
+            if (q == "cristina" or q == "lopes"):
+                print(posting)
+
             links_len = 0
             with open("TotalLinks.txt", "r") as TotalL:
                 links_len = int(TotalL.readline())
@@ -87,6 +90,7 @@ def Search():
                 print("There are no links with the query: ", q)
                 # will need to fix this so that if we dont find lopes we can go to next closest thing
                 continue
+            
             Idf = math.log10(links_len / len(posting))
             
             # can do this later to optimize, when doing interception you want the docid to be sorted in order so that the intercep is faster

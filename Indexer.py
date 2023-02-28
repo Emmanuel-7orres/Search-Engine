@@ -15,6 +15,9 @@ def writeIndextoFile(Index, part_num):
         with open("IndexPart" + str(part_num) + ".txt", "w+") as Part:
             
             for i in range(10):
+                # writes seek position for each number into index of index file IndexSeek
+                current_position = Part.tell()
+                Seek.write("Part" + str(part_num) + " " + str(i) + " " + str(current_position) + "\n")
                 for term in Index[str(i)].keys():
                     termstring = term + ","
                     for tup in Index[str(i)][term]:
@@ -25,10 +28,13 @@ def writeIndextoFile(Index, part_num):
                     Part.write(termstring)
                     Part.write("\n")
 
-            current_position = Part.tell()
-            Seek.write("Part" + str(part_num) + " atoi:" + str(current_position) + "\n")
+            
             for i in range(97, 106, 1):
                 letter = chr(i)
+                # writes seek position for each character into index of index file IndexSeek
+                current_position = Part.tell()
+                Seek.write("Part" + str(part_num) + " " + letter + " " + str(current_position) + "\n")
+
                 for term in Index[letter].keys():
                     termstring = term + ","
                     for tup in Index[chr(i)][term]:
@@ -39,10 +45,11 @@ def writeIndextoFile(Index, part_num):
                     Part.write(termstring)
                     Part.write("\n")
 
-            current_position = Part.tell()
-            Seek.write("Part" + str(part_num) + " jtor:" + str(current_position) + "\n")
             for i in range(106, 115, 1):
                 letter = chr(i)
+                # writes seek position for each character into index of index file IndexSeek
+                current_position = Part.tell()
+                Seek.write("Part" + str(part_num) + " " + letter + " " + str(current_position) + "\n")
                 for term in Index[letter].keys():
                     termstring = term + ","
                     for tup in Index[chr(i)][term]:
@@ -53,10 +60,11 @@ def writeIndextoFile(Index, part_num):
                     Part.write(termstring)
                     Part.write("\n")
 
-            current_position = Part.tell()
-            Seek.write("Part" + str(part_num) + " stoz:" + str(current_position) + "\n")
             for i in range(115, 123, 1):
                 letter = chr(i)
+                # writes seek position for each character into index of index file IndexSeek
+                current_position = Part.tell()
+                Seek.write("Part" + str(part_num) + " " + letter + " " + str(current_position) + "\n")
                 for term in Index[letter].keys():
                     termstring = term + ","
                     for tup in Index[chr(i)][term]:
@@ -86,9 +94,46 @@ def indexer(ListLinks, Index, links):
             # checked if each word is ascii and covert each word to lower case characters
             text = json.load(jason)
 
-            soup = BeautifulSoup(text["content"], 'lxml')
-            tokens = re.findall("([a-zA-Z0-9]+)", soup.get_text().lower())
-            #print(link)
+            soup = BeautifulSoup(text["content"].lower(), 'lxml')
+            tokens = re.findall("([a-zA-Z0-9]+)", soup.get_text())
+            
+            strong = soup.findAll('strong')
+            strong_tokens = []
+            # strong_tokens is a list of all strong terms in the document   
+            if len(strong) > 0:
+                strong_string = ""
+                for s in strong:
+                    strong_string += str(s.text)
+                strong_tokens = re.findall("([a-zA-Z0-9]+)", strong_string)  
+                             
+
+            bolding = soup.findAll('b')
+            bold_tokens = []
+            # bold_tokens is a list of all bold terms in the document
+            if len(bolding) > 0:
+                boldstring = ""
+                for bold in bolding:
+                    boldstring += str(bold.text)
+                bold_tokens = re.findall("([a-zA-Z0-9]+)", boldstring)
+
+            headers = soup.find_all(re.compile('^h[1-3]$'))
+            header_tokens = []
+            # header_tokens is a list of all headers 1 2 and 3 in the document
+            if len(headers) > 0:
+                headers_string = ""
+                for head in headers:
+                    headers_string += str(head.text)
+                header_tokens = re.findall("([a-zA-Z0-9]+)", headers_string)
+
+            titles = soup.findAll('title')
+            title_tokens = []
+            # title_tokens is a list of all headers 1 2 and 3 in the document
+            if len(titles) > 0:
+                title_string = ""
+                for title in titles:
+                    title_string += str(title.text)
+                title_tokens = re.findall("([a-zA-Z0-9]+)", title_string)
+
             
             for word in set(tokens):
                 
@@ -105,13 +150,31 @@ def indexer(ListLinks, Index, links):
                     # if current url is in the list links and the index of current link is also the set of integers,
                     # we move on to the next iteration, otherwise we add the index of the url to the set of that word
                     linkIdx = links.index(text["url"]) + 1
-                
-                    Tf = tokens.count(word) / len(tokens)
+
+                    Tf = 1 + (math.log10(tokens.count(word)) if tokens.count(word) != 0 else 0)
+                    if (word in bold_tokens):
+                        Tf += 1
+                    if (word in strong_tokens):
+                        Tf += 1
+                    if (word in title_tokens):
+                        Tf += 2
+                    if (word in header_tokens):
+                        Tf += 2
+                    
+
                     Index[first_letter][word].append((linkIdx, Tf))
                     counter+=1
                 else:
                     # if current url is not in list links, then we divide the number of times word appears in doc/ total number of terms in doc to get the TF value
-                    Tf = tokens.count(word) / len(tokens)
+                    Tf = 1 + (math.log10(tokens.count(word)) if tokens.count(word) != 0 else 0)
+                    if (word in bold_tokens):
+                        Tf += 1
+                    if (word in strong_tokens):
+                        Tf += 1
+                    if (word in title_tokens):
+                        Tf += 2
+                    if (word in header_tokens):
+                        Tf += 2
             
                     # Also appending the current link into the list links
                     # Adding the word in the dictionary and adding the docId with Term frequency
@@ -145,7 +208,7 @@ def main():
     
 
     links = []
-    directory = "DEV" 
+    directory = "ANALYST" 
     drList = os.listdir(directory)
     ListLinks = []
     # Looping through the list of folder from the directory
