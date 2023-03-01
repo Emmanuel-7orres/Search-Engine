@@ -78,7 +78,6 @@ def writeIndextoFile(Index, part_num):
 
 # indexer function handles reading json files with parameters link, Index, links, Tfs
 def indexer(ListLinks, Index, links):
-    counter = 0
     part_counter = 1
     link_counter = 0
     for link in ListLinks:
@@ -86,7 +85,7 @@ def indexer(ListLinks, Index, links):
         # Lemmatizer object to stem unnecessary words 
         lm = WordNetLemmatizer()
         with open(link, "r") as jason:
-            
+            #print(link)
             # opening the json in the folder 
             # calling load to convert the json file into a dictionary 
             # tokens: a list of all all alphanumeric sequences in the dataset
@@ -103,7 +102,7 @@ def indexer(ListLinks, Index, links):
             if len(strong) > 0:
                 strong_string = ""
                 for s in strong:
-                    strong_string += str(s.text)
+                    strong_string += lm.lemmatize(str(s.text))
                 strong_tokens = re.findall("([a-zA-Z0-9]+)", strong_string)  
                              
 
@@ -113,7 +112,7 @@ def indexer(ListLinks, Index, links):
             if len(bolding) > 0:
                 boldstring = ""
                 for bold in bolding:
-                    boldstring += str(bold.text)
+                    boldstring += lm.lemmatize(str(bold.text))
                 bold_tokens = re.findall("([a-zA-Z0-9]+)", boldstring)
 
             headers = soup.find_all(re.compile('^h[1-3]$'))
@@ -122,7 +121,7 @@ def indexer(ListLinks, Index, links):
             if len(headers) > 0:
                 headers_string = ""
                 for head in headers:
-                    headers_string += str(head.text)
+                    headers_string += lm.lemmatize(str(head.text))
                 header_tokens = re.findall("([a-zA-Z0-9]+)", headers_string)
 
             titles = soup.findAll('title')
@@ -131,7 +130,7 @@ def indexer(ListLinks, Index, links):
             if len(titles) > 0:
                 title_string = ""
                 for title in titles:
-                    title_string += str(title.text)
+                    title_string += lm.lemmatize(str(title.text))
                 title_tokens = re.findall("([a-zA-Z0-9]+)", title_string)
 
             
@@ -163,7 +162,6 @@ def indexer(ListLinks, Index, links):
                     
 
                     Index[first_letter][word].append((linkIdx, Tf))
-                    counter+=1
                 else:
                     # if current url is not in list links, then we divide the number of times word appears in doc/ total number of terms in doc to get the TF value
                     Tf = 1 + (math.log10(tokens.count(word)) if tokens.count(word) != 0 else 0)
@@ -182,10 +180,9 @@ def indexer(ListLinks, Index, links):
                     
                     # Reminder docid 1 is referring to line 1 in linkstxt
                     Index[first_letter][word].append((len(links), Tf))
-                    counter+=1
 
         link_counter+=1
-        #print(counter)
+        #print(link_counter)
 
         if link_counter > math.ceil(len(ListLinks)/3):
             writeIndextoFile(Index, part_counter)
