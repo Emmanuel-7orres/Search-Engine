@@ -78,10 +78,6 @@ def Search():
             postings3 = searchIndexPart(Idx3, Seek_position_part3, q)
             posting += postings3
 
-            # DEBUG
-            if (q == "cristina" or q == "lopes"):
-                print(posting)
-
             links_len = 0
             with open("TotalLinks.txt", "r") as TotalL:
                 links_len = int(TotalL.readline())
