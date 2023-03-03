@@ -4,8 +4,9 @@ import json
 import re
 import math
 from nltk.stem import WordNetLemmatizer
-from collections import defaultdict
+from collections import defaultdict, Counter
 from bs4 import BeautifulSoup
+
 
 def writeIndextoFile(Index, part_num):
     #create file index for 0-9
@@ -75,15 +76,27 @@ def writeIndextoFile(Index, part_num):
                     Part.write(termstring)
                     Part.write("\n")
     
+def parseTags(tag, soup, lm): 
+    # returns a list of the tag tokens e.g tag = strong/bold/title
+    
+    tags = soup.find_all(tag)
+    if len(tags) > 0:
+        tag_string = ""
+        for tag in tags:
+            tag_string += lm.lemmatize(tag.text)
+        return re.findall("([a-zA-Z0-9]+)", tag_string)
+    return []
+
+
+
 
 # indexer function handles reading json files with parameters link, Index, links, Tfs
 def indexer(ListLinks, Index, links):
     part_counter = 1
     link_counter = 0
+    # Lemmatizer object to stem unnecessary words 
+    lm = WordNetLemmatizer()
     for link in ListLinks:
-        
-        # Lemmatizer object to stem unnecessary words 
-        lm = WordNetLemmatizer()
         with open(link, "r") as jason:
             #print(link)
             # opening the json in the folder 
@@ -95,46 +108,24 @@ def indexer(ListLinks, Index, links):
 
             soup = BeautifulSoup(text["content"].lower(), 'lxml')
             tokens = re.findall("([a-zA-Z0-9]+)", soup.get_text())
+            tokens = Counter(tokens)
             
-            strong = soup.findAll('strong')
-            strong_tokens = []
             # strong_tokens is a list of all strong terms in the document   
-            if len(strong) > 0:
-                strong_string = ""
-                for s in strong:
-                    strong_string += lm.lemmatize(str(s.text))
-                strong_tokens = re.findall("([a-zA-Z0-9]+)", strong_string)  
-                             
-
-            bolding = soup.findAll('b')
-            bold_tokens = []
-            # bold_tokens is a list of all bold terms in the document
-            if len(bolding) > 0:
-                boldstring = ""
-                for bold in bolding:
-                    boldstring += lm.lemmatize(str(bold.text))
-                bold_tokens = re.findall("([a-zA-Z0-9]+)", boldstring)
-
-            headers = soup.find_all(re.compile('^h[1-3]$'))
-            header_tokens = []
-            # header_tokens is a list of all headers 1 2 and 3 in the document
-            if len(headers) > 0:
-                headers_string = ""
-                for head in headers:
-                    headers_string += lm.lemmatize(str(head.text))
-                header_tokens = re.findall("([a-zA-Z0-9]+)", headers_string)
-
-            titles = soup.findAll('title')
-            title_tokens = []
-            # title_tokens is a list of all headers 1 2 and 3 in the document
-            if len(titles) > 0:
-                title_string = ""
-                for title in titles:
-                    title_string += lm.lemmatize(str(title.text))
-                title_tokens = re.findall("([a-zA-Z0-9]+)", title_string)
+            strong_tokens = parseTags("strong", soup, lm)
 
             
-            for word in set(tokens):
+            # bold_tokens is a list of all bold terms in the document
+            bold_tokens = parseTags("b", soup, lm)
+            
+
+            # header_tokens is a list of all headers 1 2 and 3 in the document
+            header_tokens = parseTags(["h1", "h2", "h3"], soup, lm)
+            
+
+            # title_tokens is a list of all headers 1 2 and 3 in the document
+            title_tokens = parseTags("title", soup, lm)
+            
+            for word in tokens:
                 
                 word = lm.lemmatize(word)
                 
@@ -149,8 +140,8 @@ def indexer(ListLinks, Index, links):
                     # if current url is in the list links and the index of current link is also the set of integers,
                     # we move on to the next iteration, otherwise we add the index of the url to the set of that word
                     linkIdx = links.index(text["url"]) + 1
-
-                    Tf = 1 + (math.log10(tokens.count(word)) if tokens.count(word) != 0 else 0)
+                    word_count = tokens[word]
+                    Tf = 1 + (math.log10(word_count) if word_count != 0 else 0)
                     if (word in bold_tokens):
                         Tf += 1
                     if (word in strong_tokens):
@@ -164,7 +155,8 @@ def indexer(ListLinks, Index, links):
                     Index[first_letter][word].append((linkIdx, Tf))
                 else:
                     # if current url is not in list links, then we divide the number of times word appears in doc/ total number of terms in doc to get the TF value
-                    Tf = 1 + (math.log10(tokens.count(word)) if tokens.count(word) != 0 else 0)
+                    word_count = tokens[word]
+                    Tf = 1 + (math.log10(word_count) if word_count != 0 else 0)
                     if (word in bold_tokens):
                         Tf += 1
                     if (word in strong_tokens):
@@ -184,7 +176,7 @@ def indexer(ListLinks, Index, links):
         link_counter+=1
         #print(link_counter)
 
-        if link_counter > math.ceil(len(ListLinks)/3):
+        if link_counter == len(ListLinks):
             writeIndextoFile(Index, part_counter)
             Index.clear()
             part_counter += 1
@@ -208,19 +200,21 @@ def main():
     directory = "ANALYST" 
     drList = os.listdir(directory)
     ListLinks = []
+    
     # Looping through the list of folder from the directory
     # call os.listdir to open those folders to get the json files
     # looping through the json files and calling indexer function above
     for dir in drList:
         linkList = os.listdir(directory + "/" + dir)
         for link in linkList:
-            #indexer(directory + "/" + dir + "/" + link, Index, links)
             ListLinks.append(directory + "/" + dir + "/" + link)
 
-    
-    indexer(ListLinks, Index, links)
-
-    writeIndextoFile(Index, 3)
+    part1 = ListLinks[0:math.ceil(len(ListLinks)/3)]
+    part2 = ListLinks[math.ceil(len(ListLinks)/3): 2*math.ceil(len(ListLinks)/3)]
+    part3 = ListLinks[2*math.ceil(len(ListLinks)/3):]
+    indexer(part1, Index, links)
+    indexer(part2, Index, links)
+    indexer(part3, Index, links)
 
     # opens the Links.txt and writes each url 
     with open("Links.txt", "w+") as linkList:
