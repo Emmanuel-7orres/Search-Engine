@@ -8,73 +8,74 @@ from collections import defaultdict, Counter
 from bs4 import BeautifulSoup
 
 
-def writeIndextoFile(Index, part_num):
-    #create file index for 0-9
-    with open("IndexSeek.txt", "a+") as Seek:
+def writeIndextoFile(Index, part_num, IndexofIndex):
 
-
-        with open("IndexPart" + str(part_num) + ".txt", "w+") as Part:
-            
-            for i in range(10):
-                # writes seek position for each number into index of index file IndexSeek
+    with open("IndexPart" + str(part_num) + ".txt", "w+") as Part:
+        
+        for i in range(10):
+            for term in Index[str(i)].keys():
+                # adds seek position to Index of Index for each term
                 current_position = Part.tell()
-                Seek.write("Part" + str(part_num) + " " + str(i) + " " + str(current_position) + "\n")
-                for term in Index[str(i)].keys():
-                    termstring = term + ","
-                    for tup in Index[str(i)][term]:
-                        termstring += str(tup[0])
-                        termstring += "|"
-                        termstring += str(tup[1])
-                        termstring += ";"
-                    Part.write(termstring)
-                    Part.write("\n")
+                IndexofIndex[term].append((part_num, current_position))
 
-            
-            for i in range(97, 106, 1):
-                letter = chr(i)
-                # writes seek position for each character into index of index file IndexSeek
+                termstring = term + ","
+                for tup in Index[str(i)][term]:
+                    termstring += str(tup[0])
+                    termstring += "|"
+                    termstring += str(tup[1])
+                    termstring += ";"
+                Part.write(termstring)
+                Part.write("\n")
+
+        
+        for i in range(97, 106, 1):
+            letter = chr(i)
+
+            for term in Index[letter].keys():
+                # adds seek position to Index of Index for each term
                 current_position = Part.tell()
-                Seek.write("Part" + str(part_num) + " " + letter + " " + str(current_position) + "\n")
+                IndexofIndex[term].append((part_num, current_position))
 
-                for term in Index[letter].keys():
-                    termstring = term + ","
-                    for tup in Index[chr(i)][term]:
-                        termstring += str(tup[0])
-                        termstring += "|"
-                        termstring += str(tup[1])
-                        termstring += ";"
-                    Part.write(termstring)
-                    Part.write("\n")
+                termstring = term + ","
+                for tup in Index[chr(i)][term]:
+                    termstring += str(tup[0])
+                    termstring += "|"
+                    termstring += str(tup[1])
+                    termstring += ";"
+                Part.write(termstring)
+                Part.write("\n")
 
-            for i in range(106, 115, 1):
-                letter = chr(i)
-                # writes seek position for each character into index of index file IndexSeek
+        for i in range(106, 115, 1):
+            letter = chr(i)
+            for term in Index[letter].keys():
+                # adds seek position to Index of Index for each term
                 current_position = Part.tell()
-                Seek.write("Part" + str(part_num) + " " + letter + " " + str(current_position) + "\n")
-                for term in Index[letter].keys():
-                    termstring = term + ","
-                    for tup in Index[chr(i)][term]:
-                        termstring += str(tup[0])
-                        termstring += "|"
-                        termstring += str(tup[1])
-                        termstring += ";"
-                    Part.write(termstring)
-                    Part.write("\n")
+                IndexofIndex[term].append((part_num, current_position))
 
-            for i in range(115, 123, 1):
-                letter = chr(i)
-                # writes seek position for each character into index of index file IndexSeek
+                termstring = term + ","
+                for tup in Index[chr(i)][term]:
+                    termstring += str(tup[0])
+                    termstring += "|"
+                    termstring += str(tup[1])
+                    termstring += ";"
+                Part.write(termstring)
+                Part.write("\n")
+
+        for i in range(115, 123, 1):
+            letter = chr(i)
+            for term in Index[letter].keys():
+                # adds seek position to Index of Index for each term
                 current_position = Part.tell()
-                Seek.write("Part" + str(part_num) + " " + letter + " " + str(current_position) + "\n")
-                for term in Index[letter].keys():
-                    termstring = term + ","
-                    for tup in Index[chr(i)][term]:
-                        termstring += str(tup[0])
-                        termstring += "|"
-                        termstring += str(tup[1])
-                        termstring += ";"
-                    Part.write(termstring)
-                    Part.write("\n")
+                IndexofIndex[term].append((part_num, current_position))
+
+                termstring = term + ","
+                for tup in Index[chr(i)][term]:
+                    termstring += str(tup[0])
+                    termstring += "|"
+                    termstring += str(tup[1])
+                    termstring += ";"
+                Part.write(termstring)
+                Part.write("\n")
     
 def parseTags(tag, soup, lm): 
     # returns a list of the tag tokens e.g tag = strong/bold/title
@@ -91,8 +92,7 @@ def parseTags(tag, soup, lm):
 
 
 # indexer function handles reading json files with parameters link, Index, links, Tfs
-def indexer(ListLinks, Index, links):
-    part_counter = 1
+def indexer(ListLinks, Index, links, IndexofIndex, part_num):
     link_counter = 0
     # Lemmatizer object to stem unnecessary words 
     lm = WordNetLemmatizer()
@@ -177,9 +177,8 @@ def indexer(ListLinks, Index, links):
         #print(link_counter)
 
         if link_counter == len(ListLinks):
-            writeIndextoFile(Index, part_counter)
+            writeIndextoFile(Index, part_num, IndexofIndex)
             Index.clear()
-            part_counter += 1
             link_counter = 0
 
 
@@ -193,7 +192,7 @@ def main():
     start_time = time.time()
     Index = defaultdict(lambda: defaultdict(list))
     
-    #Creating faster access time through multiple dictionary indexes containing a-z 0-9
+    IndexofIndex = defaultdict(list)
     
 
     links = []
@@ -212,20 +211,28 @@ def main():
     part1 = ListLinks[0:math.ceil(len(ListLinks)/3)]
     part2 = ListLinks[math.ceil(len(ListLinks)/3): 2*math.ceil(len(ListLinks)/3)]
     part3 = ListLinks[2*math.ceil(len(ListLinks)/3):]
-    indexer(part1, Index, links)
-    indexer(part2, Index, links)
-    indexer(part3, Index, links)
+    indexer(part1, Index, links, IndexofIndex, 1)
+    indexer(part2, Index, links, IndexofIndex, 2)
+    indexer(part3, Index, links, IndexofIndex, 3)
+
+    # write seek positions for each term into a file IndexofIndex
+    with open("IndexofIndex.txt", "w+") as seek:
+        for term, seek_list in IndexofIndex.items():
+            write_string = ""
+            write_string += term
+            for each_seek in seek_list:
+                write_string += " "
+                write_string += str(each_seek[0])
+                write_string += " "
+                write_string += str(each_seek[1])
+            write_string += "\n"
+            seek.write(write_string)
 
     # opens the Links.txt and writes each url 
     with open("Links.txt", "w+") as linkList:
-        link_counter = 1
         for link in links:
-            if link_counter % 100 == 0:
-                with open("LinksSeek.txt", "a+") as Seek:
-                    Seek.write(str(link_counter) + ":" + str(linkList.tell()) + "\n")
             linkList.write(str(link))
             linkList.write("\n")
-            link_counter += 1
 
 
     with open("TotalLinks.txt", "w+") as total:
