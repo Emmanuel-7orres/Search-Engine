@@ -1,26 +1,15 @@
 import math
 from collections import defaultdict
+from nltk.stem import PorterStemmer
 
 import time
 
-def find_seek_pos(IndexSeek, letter, part_num):
-    # returns the byte position to seek for start_range and Idx Part number
-    IndexSeek.seek(0)
-    for line in IndexSeek:
-        
-        if (part_num == line[4] and letter == line[6]): # Part# 4th index rep num  
-            return int(line.split(" ")[2])
-
-def letter_range(first_letter_q):
-    first_letter_q = ord(first_letter_q)
-    if (first_letter_q < 10):
-        return "nums"
-    if (first_letter_q <= 105):
-        return "atoi"
-    if (first_letter_q <= 114):
-        return "jtor"
-    if (first_letter_q <= 122):
-        return "stoz"
+def find_seek_pos(IndexofIndex, term, part_num):
+    # returns the byte position to seek for term/token
+    for tup in IndexofIndex[term[0:1]][term]:
+        if part_num == tup[0]:
+            return int(tup[1])
+    return -1
 
 def searchIndexPart(Indexfile, Seek_position, query_term):
     # returns a list posting for the term
@@ -43,40 +32,56 @@ def Search():
     Idx2 = open("IndexPart2.txt", "r")
     Idx3 = open("IndexPart3.txt", "r")
     LinksTxt = open("Links.txt", "r")
-    LinksSeek = open("LinksSeek.txt", "r")
-    IndexSeek = open("indexSeek.txt", "r")
 
-    #term wit
-
+    
+    # Load all links into memory for fast access
     links = [0]
     for line in LinksTxt:
         links.append(line)
 
+    # Load Index of Indexes into memory for fast access
+    IndexofIndex = defaultdict(lambda: defaultdict(list))
+
+    with open("IndexofIndex.txt", "r+") as IndexSeek:
+        for line in IndexSeek:
+            line_split = line.strip().split()
+            
+            for i in range(1, len(line_split), 2):
+                IndexofIndex[line_split[0][0]][line_split[0]].append((line_split[i], line_split[i+1]))
+
+
     # example term,2060|0.0033003300330033004;333|0.000333 
     query = ""
+    ps = PorterStemmer()
     
     while query != "quit":
         query = input("Enter a query: ").lower()
         start_time = time.time()
         queryList = query.split()
         List_of_Postings = []
+        
         for q in queryList:
-            postings = []
-            first_letter_q = q[0]
-            # determine whether first letter is 0-9 a-z
-            # find all seek positions for each part for the starting range
-            Seek_position_part1 = find_seek_pos(IndexSeek, first_letter_q, "1") 
-            Seek_position_part2 = find_seek_pos(IndexSeek, first_letter_q, "2") 
-            Seek_position_part3 = find_seek_pos(IndexSeek, first_letter_q, "3") 
+            q = ps.stem(q)
+            
+            # find all seek positions for each part for the query term
+            Seek_position_part1 = find_seek_pos(IndexofIndex, q, "1") 
+            Seek_position_part2 = find_seek_pos(IndexofIndex, q, "2") 
+            Seek_position_part3 = find_seek_pos(IndexofIndex, q, "3") 
+            print("Finding Seek Positions ",time.time() - start_time)
             
             # posting is posting for 1 term the q of queryList, combination of posting from 3 parts
             posting = []
-            posting1 = searchIndexPart(Idx1, Seek_position_part1, q)
-            posting += posting1
-            postings2 = searchIndexPart(Idx2, Seek_position_part2, q)
-            posting += postings2
-            postings3 = searchIndexPart(Idx3, Seek_position_part3, q)
-            posting += postings3
+            if (Seek_position_part1 != -1):
+                posting1 = searchIndexPart(Idx1, Seek_position_part1, q)
+                posting += posting1
+
+            if (Seek_position_part2 != -1):
+                postings2 = searchIndexPart(Idx2, Seek_position_part2, q)
+                posting += postings2
+            
+            if (Seek_position_part3 != -1):
+                postings3 = searchIndexPart(Idx3, Seek_position_part3, q)
+                posting += postings3
 
             links_len = 0
             with open("TotalLinks.txt", "r") as TotalL:
@@ -91,7 +96,9 @@ def Search():
             
             # can do this later to optimize, when doing interception you want the docid to be sorted in order so that the intercep is faster
             List_of_Postings.append(sorted(posting, key=lambda x: float(x[1]) * Idf, reverse=True))
+            print("Sorting Postings ",time.time() - start_time)
 
+        print("After while loop ",time.time() - start_time)
         if (len(List_of_Postings)) == 0:
             print("no matches found for query")
             continue
@@ -123,8 +130,6 @@ def Search():
     Idx1.close()
     Idx2.close()
     Idx3.close()
-    LinksSeek.close()
-    IndexSeek.close()
     LinksTxt.close()
     
 
