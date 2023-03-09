@@ -3,7 +3,7 @@ import time
 import json
 import re
 import math
-from nltk.stem import WordNetLemmatizer
+from nltk.stem import PorterStemmer
 from collections import defaultdict, Counter
 from bs4 import BeautifulSoup
 from urllib.parse import urldefrag
@@ -79,14 +79,14 @@ def writeIndextoFile(Index, part_num, IndexofIndex):
                 Part.write(termstring)
                 Part.write("\n")
     
-def parseTags(tag, soup, lm): 
+def parseTags(tag, soup, ps): 
     # returns a list of the tag tokens e.g tag = strong/bold/title
     
     tags = soup.find_all(tag)
     if len(tags) > 0:
         tag_string = ""
         for tag in tags:
-            tag_string += lm.lemmatize(tag.text)
+            tag_string += ps.stem(tag.text)
         return re.findall("([a-zA-Z0-9]+)", tag_string)
     return []
 
@@ -97,7 +97,7 @@ def parseTags(tag, soup, lm):
 def indexer(ListLinks, Index, links, IndexofIndex, part_num):
     link_counter = 0
     # Lemmatizer object to stem unnecessary words 
-    lm = WordNetLemmatizer()
+    ps = PorterStemmer()
     for link in ListLinks:
         with open(link, "r") as jason:
             #print(link)
@@ -123,22 +123,22 @@ def indexer(ListLinks, Index, links, IndexofIndex, part_num):
             soup = BeautifulSoup(text["content"].lower(), 'lxml')
             tokens = re.findall("([a-zA-Z0-9]+)", soup.get_text())
             
-            tokens = Counter([lm.lemmatize(i) for i in tokens]) 
+            tokens = Counter([ps.stem(i) for i in tokens]) 
             
             # strong_tokens is a list of all strong terms in the document   
-            strong_tokens = parseTags("strong", soup, lm)
+            strong_tokens = parseTags("strong", soup, ps)
 
             
             # bold_tokens is a list of all bold terms in the document
-            bold_tokens = parseTags("b", soup, lm)
+            bold_tokens = parseTags("b", soup, ps)
             
 
             # header_tokens is a list of all headers 1 2 and 3 in the document
-            header_tokens = parseTags(["h1", "h2", "h3"], soup, lm)
+            header_tokens = parseTags(["h1", "h2", "h3"], soup, ps)
             
 
             # title_tokens is a list of all headers 1 2 and 3 in the document
-            title_tokens = parseTags("title", soup, lm)
+            title_tokens = parseTags("title", soup, ps)
             
             for word in tokens:
                 
@@ -154,7 +154,7 @@ def indexer(ListLinks, Index, links, IndexofIndex, part_num):
                     # we move on to the next iteration, otherwise we add the index of the url to the set of that word
                     linkIdx = links.index(defragged_url) + 1
                     word_count = tokens[word]
-                    Tf = 1 + (math.log10(word_count) if word_count != 0 else 0)
+                    Tf =  1 + math.log10(word_count) 
                     if (word in bold_tokens):
                         Tf += 1
                     if (word in strong_tokens):
@@ -169,7 +169,7 @@ def indexer(ListLinks, Index, links, IndexofIndex, part_num):
                 else:
                     # if current url is not in list links, then we divide the number of times word appears in doc/ total number of terms in doc to get the TF value
                     word_count = tokens[word]
-                    Tf = 1 + (math.log10(word_count) if word_count != 0 else 0)
+                    Tf =  1 + math.log10(word_count) 
                     if (word in bold_tokens):
                         Tf += 1
                     if (word in strong_tokens):

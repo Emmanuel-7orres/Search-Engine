@@ -1,9 +1,7 @@
 import math
 from collections import defaultdict
-from nltk.stem import SnowballStemmer
+from nltk.stem import PorterStemmer
 import heapq
-from collections import Counter
-
 import time
 
 def find_seek_pos(IndexofIndex, term, part_num):
@@ -55,7 +53,7 @@ def Search():
 
     # example term,2060|0.0033003300330033004;333|0.000333 
     query = ""
-    ss = SnowballStemmer("english")
+    ps = PorterStemmer()
     
 
     while query != "quit":
@@ -64,13 +62,15 @@ def Search():
         query = input("Enter a query: ").lower()
         start_time = time.time()
         queryList = query.split()
+        q_count = defaultdict(int) # dictionary holding counts for each query term, reminder to count stemmed q terms
 
-        q_count = Counter(queryList) # dictionary holding count for each q term
+        # stem or dont stem
+        for i in range(len(queryList)):
+            if len(IndexofIndex[queryList[i]]) == 0:
+                queryList[i] = ps.stem(queryList[i])
             
         for q in queryList:
-            
-            #q = ss.stem(q)
-            
+            print(q)
             # find all seek positions for each part for the query term
             Seek_position_part1 = find_seek_pos(IndexofIndex, q, "1") 
             Seek_position_part2 = find_seek_pos(IndexofIndex, q, "2") 
@@ -103,14 +103,19 @@ def Search():
 
                 docid = tf_id_tup[1]
                 documentScore[docid][q] = tf_id_tup[0]
-                
+            
             if (len(top_k_posting) == 0):
                 print("There are no links with the query: ", q)
                 # will need to fix this so that if we dont find lopes we can go to next closest thing
                 continue
             
+            # Fill in q_count
+            for q_term in queryList:
+                if q == q_term:
+                    q_count[q] += 1
+
             # calculate query term rank
-            Idf = math.log10(links_len / len_postings)
+            Idf = math.log10(links_len / len_postings) 
             Tf_q = q_count[q]
             Tf_idf = Tf_q * Idf
             queryScore[q] = Tf_idf
@@ -133,22 +138,32 @@ def Search():
             eachDocId = documentScore[DocId]
             # Get document length for normalization
             all_scores = eachDocId.values()
-            doc_length = 0
-            for score in all_scores:
-                doc_length += score*score
-            doc_length = math.sqrt(doc_length)
+            if len(queryList) != 1:
+                doc_length = 0
+                for score in all_scores:
+                    doc_length += score*score
+                doc_length = math.sqrt(doc_length)
+            else:
+                 doc_length = 1
+            
+            #print(DocId)
+            #print("QUERY LENGTH: ", query_length, "DOC LENGTH: ", doc_length)
             
             eachDocId_score = 0
+            
             for q in queryScore:
-                print(query_length, doc_length)
+                #print("QUERYSCORE[q]: " , queryScore[q])
+                #print(f"documentScore[{DocId}][q]: " , documentScore[DocId][q])
                 q_score = queryScore[q]/query_length
                 d_score = documentScore[DocId][q]/doc_length
+                #print("Q SCORE: ", q_score, "d_SCORE: ", d_score)
                 cos_score = q_score*d_score
+                #print("COS SCORE", cos_score)
                 eachDocId_score += cos_score
-            print(eachDocId_score)
-            heapq.heappush(max_heap_cos, (eachDocId_score, DocId))
+            #print(eachDocId_score)
+            heapq.heappush(max_heap_cos, (-eachDocId_score, DocId))
 
-        print(max_heap_cos)
+        #print(max_heap_cos)
     
 
 
@@ -170,10 +185,16 @@ def Search():
 
         
 
-        print("Top 5 results for", query, ":\n")
-        for i in range(5):
-            print(heapq.heappop(max_heap_cos))
+        print("Top 5 results for", query + ":\n")
+        n = 5 if len(max_heap_cos) >= 5 else len(max_heap_cos)
+        for i in range(n):
+            tf_id = heapq.heappop(max_heap_cos)
+            tf_id = (-tf_id[0], tf_id[1])
+            print(tf_id)
+            print(links[tf_id[1]])
 
+        if n != 5:
+            print(f"There are only {n} results based on the corpus")
         
         print(time.time() - start_time)
         
