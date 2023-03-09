@@ -6,6 +6,8 @@ import math
 from nltk.stem import WordNetLemmatizer
 from collections import defaultdict, Counter
 from bs4 import BeautifulSoup
+from urllib.parse import urldefrag
+
 
 
 def writeIndextoFile(Index, part_num, IndexofIndex):
@@ -106,9 +108,22 @@ def indexer(ListLinks, Index, links, IndexofIndex, part_num):
             # checked if each word is ascii and covert each word to lower case characters
             text = json.load(jason)
 
+            # checking if the defragged url has already been visited
+            defragged_url = urldefrag(text["url"])[0]
+
+            if (defragged_url in links):
+                link_counter+=1
+
+                if link_counter == len(ListLinks):
+                    writeIndextoFile(Index, part_num, IndexofIndex)
+                    Index.clear()
+                    link_counter = 0
+                continue
+
             soup = BeautifulSoup(text["content"].lower(), 'lxml')
             tokens = re.findall("([a-zA-Z0-9]+)", soup.get_text())
-            tokens = Counter(tokens)
+            
+            tokens = Counter([lm.lemmatize(i) for i in tokens]) 
             
             # strong_tokens is a list of all strong terms in the document   
             strong_tokens = parseTags("strong", soup, lm)
@@ -127,8 +142,6 @@ def indexer(ListLinks, Index, links, IndexofIndex, part_num):
             
             for word in tokens:
                 
-                word = lm.lemmatize(word)
-                
                 if not word.isascii():
                     continue
 
@@ -136,10 +149,10 @@ def indexer(ListLinks, Index, links, IndexofIndex, part_num):
                 if first_letter not in Index:
                     Index[first_letter][word] = []
                 
-                if text["url"] in links:
+                if defragged_url in links:
                     # if current url is in the list links and the index of current link is also the set of integers,
                     # we move on to the next iteration, otherwise we add the index of the url to the set of that word
-                    linkIdx = links.index(text["url"]) + 1
+                    linkIdx = links.index(defragged_url) + 1
                     word_count = tokens[word]
                     Tf = 1 + (math.log10(word_count) if word_count != 0 else 0)
                     if (word in bold_tokens):
@@ -168,13 +181,12 @@ def indexer(ListLinks, Index, links, IndexofIndex, part_num):
             
                     # Also appending the current link into the list links
                     # Adding the word in the dictionary and adding the docId with Term frequency
-                    links.append(text["url"])
+                    links.append(defragged_url)
                     
                     # Reminder docid 1 is referring to line 1 in linkstxt
                     Index[first_letter][word].append((len(links), Tf))
 
         link_counter+=1
-        #print(link_counter)
 
         if link_counter == len(ListLinks):
             writeIndextoFile(Index, part_num, IndexofIndex)
