@@ -11,7 +11,7 @@ from urllib.parse import urldefrag
 
 
 def writeIndextoFile(Index, part_num, IndexofIndex):
-
+    # writes all the terms and docid + tf score to the 3 parts 
     with open("IndexPart" + str(part_num) + ".txt", "w+") as Part:
         
         for i in range(10):
@@ -81,7 +81,6 @@ def writeIndextoFile(Index, part_num, IndexofIndex):
     
 def parseTags(tag, soup, ps): 
     # returns a list of the tag tokens e.g tag = strong/bold/title
-    
     tags = soup.find_all(tag)
     if len(tags) > 0:
         tag_string = ""
@@ -96,16 +95,15 @@ def parseTags(tag, soup, ps):
 # indexer function handles reading json files with parameters link, Index, links, Tfs
 def indexer(ListLinks, Index, links, IndexofIndex, part_num):
     link_counter = 0
-    # Lemmatizer object to stem unnecessary words 
+    # stemming
     ps = PorterStemmer()
     for link in ListLinks:
         with open(link, "r") as jason:
-            #print(link)
             # opening the json in the folder 
             # calling load to convert the json file into a dictionary 
             # tokens: a list of all all alphanumeric sequences in the dataset
-            # called lemmatize to stem each word in the list
-            # checked if each word is ascii and covert each word to lower case characters
+            # called ps to stem each word in the list
+            # covert each word in text to lower case characters
             text = json.load(jason)
 
             # checking if the defragged url has already been visited
@@ -121,37 +119,36 @@ def indexer(ListLinks, Index, links, IndexofIndex, part_num):
                 continue
 
             soup = BeautifulSoup(text["content"].lower(), 'lxml')
+            # regular expression find possible terms in text
             tokens = re.findall("([a-zA-Z0-9]+)", soup.get_text())
             
+            # Counter is a dictionary with terms as keys and values = term frequency
             tokens = Counter([ps.stem(i) for i in tokens]) 
             
             # strong_tokens is a list of all strong terms in the document   
             strong_tokens = parseTags("strong", soup, ps)
-
             
             # bold_tokens is a list of all bold terms in the document
             bold_tokens = parseTags("b", soup, ps)
             
-
             # header_tokens is a list of all headers 1 2 and 3 in the document
             header_tokens = parseTags(["h1", "h2", "h3"], soup, ps)
-            
 
             # title_tokens is a list of all headers 1 2 and 3 in the document
             title_tokens = parseTags("title", soup, ps)
             
             for word in tokens:
-                
                 if not word.isascii():
                     continue
 
                 first_letter = word[0]
                 if first_letter not in Index:
+                    # create empty list (posting) for the word & the first letter is to organize the dictionary
                     Index[first_letter][word] = []
                 
                 if defragged_url in links:
-                    # if current url is in the list links and the index of current link is also the set of integers,
-                    # we move on to the next iteration, otherwise we add the index of the url to the set of that word
+                    # if current url is in links then get the index from links data structure for docid
+                    # Increment if needed for Tf score
                     linkIdx = links.index(defragged_url) + 1
                     word_count = tokens[word]
                     Tf =  1 + math.log10(word_count) 
@@ -164,10 +161,10 @@ def indexer(ListLinks, Index, links, IndexofIndex, part_num):
                     if (word in header_tokens):
                         Tf += 2
                     
-
+                    # adding the word and tf score to Index
                     Index[first_letter][word].append((linkIdx, Tf))
                 else:
-                    # if current url is not in list links, then we divide the number of times word appears in doc/ total number of terms in doc to get the TF value
+                    # Increment if needed for Tf score
                     word_count = tokens[word]
                     Tf =  1 + math.log10(word_count) 
                     if (word in bold_tokens):
@@ -180,14 +177,13 @@ def indexer(ListLinks, Index, links, IndexofIndex, part_num):
                         Tf += 2
             
                     # Also appending the current link into the list links
-                    # Adding the word in the dictionary and adding the docId with Term frequency
                     links.append(defragged_url)
-                    
-                    # Reminder docid 1 is referring to line 1 in linkstxt
+                    # adding the word and tf score to Index
                     Index[first_letter][word].append((len(links), Tf))
 
         link_counter+=1
 
+        # To track if we covered all the links given in function call, if true write to Indexfile for part #
         if link_counter == len(ListLinks):
             writeIndextoFile(Index, part_num, IndexofIndex)
             Index.clear()
@@ -195,31 +191,26 @@ def indexer(ListLinks, Index, links, IndexofIndex, part_num):
 
 
 def main():
-    # Definition of link, Index, links, Tfs, directory
-    # link: the directory of the folder of folder of json files
-    # Index: a defaultdict with keys of terms and values of docId and Term Frequency
-    # links: a list of all the urls we have visited
-    # directory: the name of the directory folder
-    # drList: grabbing all the folders within that directory
     start_time = time.time()
     Index = defaultdict(lambda: defaultdict(list))
-    
+    # Index contains first letter -> term -> posting (docid, term frequency)
     IndexofIndex = defaultdict(list)
-    
-
+    # IndexofIndex contains term -> [(part#, seekpos), ...]
     links = []
-    directory = "ANALYST" 
+    # list of links
+    directory = "DEV" 
     drList = os.listdir(directory)
+    # list of all folders
     ListLinks = []
+    # list of all json files from the folders
     
-    # Looping through the list of folder from the directory
-    # call os.listdir to open those folders to get the json files
-    # looping through the json files and calling indexer function above
+    # populating ListLinks
     for dir in drList:
         linkList = os.listdir(directory + "/" + dir)
         for link in linkList:
             ListLinks.append(directory + "/" + dir + "/" + link)
 
+    # splitting the corpus into 3 parts and indexing each part into a file
     part1 = ListLinks[0:math.ceil(len(ListLinks)/3)]
     part2 = ListLinks[math.ceil(len(ListLinks)/3): 2*math.ceil(len(ListLinks)/3)]
     part3 = ListLinks[2*math.ceil(len(ListLinks)/3):]
@@ -246,30 +237,11 @@ def main():
             linkList.write(str(link))
             linkList.write("\n")
 
-
+    # writes total links indexed
     with open("TotalLinks.txt", "w+") as total:
         total.write(str(len(links)))
 
-    # TF = num of times word appears in doc/ total number of terms in doc   
-    # IDF = log(number of documents/number of documents that have the word)
-    # tf-idf = TF * IDF
-    # Loops thorugh the TF dictionary and calculates the idf value 
-    # then multiples the tf value after calling indexer with the idf we calculate 
-    # for word in Index.keys():
-    #     Idf = log10(len(links) / len(Index[word]))
-    #     for urls in Index[word]:
-    #         Tfs[urls][word] = Tfs[urls][word] * Idf
-
-
-
-    # prints the number of unique links
-    # prints the total number of words
-    # print(len(links))
-    # print(len(Index))
     print(time.time() - start_time)
             
-
-
-
 if __name__ == "__main__":
     main()

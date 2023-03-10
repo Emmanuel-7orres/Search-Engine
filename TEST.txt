@@ -1,0 +1,28 @@
+cristina lopes                  # Duplicate links in the ranking, fixed by defrag
+Acm                             # Duplicate links in the ranking, fixed by defrag
+Master of software engineering  # Improved ranking by using vector ranking score instead of boolean and prioritized docids that included more query terms
+Computer science                # Improved ranking by using vector ranking score instead of boolean and prioritized docids that included more query terms
+Machine learning                # Duplicate links in the ranking, fixed by defrag
+Anteater                        # Duplicate links in the ranking, fixed by defrag
+Esports                         # Ranked results were poor because we did not test if stemmed query Esport is a more popular query
+Algorithms                      # Ranked results were poor because we did not test if stemmed query Algorithm is a more popular query
+Linear Algebra                  # Improved runtime from .95 to .013 
+Game design                     # Improved runtime from 2.55 to .039
+Michael Shindler                # Improved runtime from .4 to .015
+Data science                    # Improved runtime from 6.5 to .044
+Donald bren                     # Improved runtime from 1.8 to .031
+Statistics                      # Improved runtime from .3 to .012
+Informatics                     # Improved runtime from .87 to .016
+Computer networks               # Improved runtime from 2.4 to .017
+Programming Languages           # Improved runtime from 1.55 to .043
+Search engine                   # Improved runtime from 1.18 to .046
+University of California        # Ranked results improved after prioritizing docs that included more query terms. Previously prioritized docs with only california too much
+Web Crawler                     # Ranked results improved after adding the vector space model cos sim(q, d) ranking 
+
+Query runtime was improved for all queries by using threshhold heuristic top k scores & using porter stemmer instead of a dictionary stemmer & using Index of seek positions 
+for each query team. Indexing each seek position for the possible query terms improved the runtime the most as we did not have to search many lines in the Index files for the term's data
+Also we used max heap instead of sorting to get top scores which improved some runtime.
+
+Query rankings were improved generally for all queries by changing from the boolean retrieval model to vector space model cosine sim (q, d) lnc.ltc & from prioritizing rankings 
+that contain more query terms.
+Also, improved rankings by adding score for terms that are bold, strong, headers, and titles.

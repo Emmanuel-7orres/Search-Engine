@@ -13,13 +13,13 @@ def find_seek_pos(IndexofIndex, term, part_num):
     return -1
 
 def searchIndexPart(Indexfile, Seek_position, query_term, posting):
-    # returns a list posting for the term
+    # populates posting which is a max heap with (tf score, docid)
     Indexfile.seek(Seek_position)
     line = Indexfile.readline().rstrip()
     line_split = line.split(",")
     if query_term == line_split[0]:
         term_data = line_split[1]
-        for docid_tf in term_data.split(";"):  # 2060 | tf ; 3030 | tf 
+        for docid_tf in term_data.split(";"):  
             tup = docid_tf.split("|")
             if (len(tup) == 1):
                 continue
@@ -31,13 +31,13 @@ def Search(Idx1, Idx2, Idx3, links, IndexofIndex, links_len, ps, query, returnLa
     if query == "":
         return
     start_time = time.time()
+    # starts timer as soon as user enters query
     queryScore = defaultdict(float) # term -> normalized score
     documentScore = defaultdict(lambda: defaultdict(float)) # docid -> term -> tf
     queryList = query.split()
     q_count = defaultdict(int) # dictionary holding counts for each query term, reminder to count stemmed q terms
 
-    # stem or dont stem
-    
+    # stem or dont stem based on more data in index
     for i in range(len(queryList)):
         if len(IndexofIndex[queryList[i]]) < len(IndexofIndex[ps.stem(queryList[i])]):
             queryList[i] = ps.stem(queryList[i])
@@ -47,21 +47,19 @@ def Search(Idx1, Idx2, Idx3, links, IndexofIndex, links_len, ps, query, returnLa
         Seek_position_part1 = find_seek_pos(IndexofIndex, q, "1") 
         Seek_position_part2 = find_seek_pos(IndexofIndex, q, "2") 
         Seek_position_part3 = find_seek_pos(IndexofIndex, q, "3") 
-        
         # posting is posting for 1 term the q of queryList, combination of posting from 3 parts
         posting = []
         if (Seek_position_part1 != -1):
             searchIndexPart(Idx1, Seek_position_part1, q, posting)
             
-
         if (Seek_position_part2 != -1):
             searchIndexPart(Idx2, Seek_position_part2, q, posting)
-            
         
         if (Seek_position_part3 != -1):
             searchIndexPart(Idx3, Seek_position_part3, q, posting)
 
         len_postings = len(posting)
+        # populates top_k_postings with the top 200 or len(posting) tf scores
         top_k_posting = []
         k = 0
         if len(posting) < 200:
@@ -69,6 +67,7 @@ def Search(Idx1, Idx2, Idx3, links, IndexofIndex, links_len, ps, query, returnLa
         else:
             k = 200
         for i in range(k):
+            # tf_id_tup is largest tf score documentid for q(term)
             tf_id_tup = heapq.heappop(posting)
             tf_id_tup = (tf_id_tup[0]*-1, tf_id_tup[1])
             top_k_posting.append(tf_id_tup)
@@ -77,16 +76,14 @@ def Search(Idx1, Idx2, Idx3, links, IndexofIndex, links_len, ps, query, returnLa
             documentScore[docid][q] = tf_id_tup[0]
         
         if (len(top_k_posting) == 0):
-            #print("There are no links with the query: ", q)
-            # will need to fix this so that if we dont find lopes we can go to next closest thing
             continue
         
-        # Fill in q_count
+        # Fill in q_count (frequency each q(term) shows up in query)
         for q_term in queryList:
             if q == q_term:
                 q_count[q] += 1
 
-        # calculate query term rank
+        # calculate query term rank tf*idf
         Idf = math.log10(links_len / len_postings) 
         Tf_q = q_count[q]
         Tf_idf = Tf_q * Idf
@@ -99,10 +96,12 @@ def Search(Idx1, Idx2, Idx3, links, IndexofIndex, links_len, ps, query, returnLa
         query_length += score*score
     query_length = math.sqrt(query_length)
 
-    #cosine similarity score for each docid
     max_heap_cos = []
+    # heap containing top documents for the query
 
-    n = len(queryList) # n is requirement of terms in docid for ex n = 4, means 4/4 terms must be in docid        
+    n = len(queryList) 
+    # n is requirement of terms in docid for ex n = 4, means 4/4 terms must be in docid        
+    # Vector space model ranked retrieval cos sim ...
     while (len(max_heap_cos) <= 5 ):
         for DocId in documentScore: # eachDocId is a dictionary with term -> tf
             eachDocId = documentScore[DocId]
@@ -120,7 +119,8 @@ def Search(Idx1, Idx2, Idx3, links, IndexofIndex, links_len, ps, query, returnLa
                 doc_length = 1
             
             eachDocId_score = 0
-            
+            #cosine similarity score for each docid
+
             for q in queryScore:
                 q_score = queryScore[q]/query_length
                 d_score = documentScore[DocId][q]/doc_length
@@ -129,9 +129,11 @@ def Search(Idx1, Idx2, Idx3, links, IndexofIndex, links_len, ps, query, returnLa
             heapq.heappush(max_heap_cos, (-eachDocId_score, DocId))
 
         n -= 1
+        # decrease the required # of terms from query that must be in query -> jumps to if not enough ranked docs
         if (n <= 0):
             break
     
+    # writes top urls to return label displayed for user on gui
     if (len(max_heap_cos)) == 0 and n <= 0:
         urls = "No matches found for query\n"
     else:
@@ -149,6 +151,7 @@ def Search(Idx1, Idx2, Idx3, links, IndexofIndex, links_len, ps, query, returnLa
     return returnLabel 
 
 def Gui():
+    # opens all files
     Idx1 = open("IndexPart1.txt", "r")
     Idx2 = open("IndexPart2.txt", "r")
     Idx3 = open("IndexPart3.txt", "r")
@@ -168,24 +171,28 @@ def Gui():
             for i in range(1, len(line_split), 2):
                 IndexofIndex[line_split[0]].append((line_split[i], line_split[i+1]))
 
+    # links len = total number of links
     links_len = 0
     with open("TotalLinks.txt", "r") as TotalL:
         links_len = int(TotalL.readline())
 
     ps = PorterStemmer()
+
+    # starts the GUI window
     root = Tk()
-    
+    # creates customization options for GUI title, size, color, resize
     root.title("Search Engine")
     root.geometry('1200x400')
     root.config(bg="grey")
     root.resizable(1,1)
-
+    # creates Labels and buttons for GUI
     Querylabel = Label(root, text='Query:', bg='lightgrey', font=('arial', 20,'bold'))
     EnterQuery = Entry(root, width=50, bd=4)
 
     returnLabel = Label(root, bg='grey', font=('arial', 10,'bold'))
     searchButton = Button(root,text="Search", bg='lightgrey', command=lambda :Search(Idx1, Idx2, Idx3, links, IndexofIndex, links_len, ps, EnterQuery.get().lower(), returnLabel))
-
+    # When search button is pressed, search function is called
+    # customizing GUI
     Querylabel.grid(row=0,column=0, sticky="NSEW")
     EnterQuery.grid(padx=10, row=0, column=1, sticky="NSEW")
     searchButton.grid(row=0, column=2, sticky="NSEW")
@@ -195,11 +202,12 @@ def Gui():
     root.grid_columnconfigure(1, weight=1)
     
     root.mainloop()
+    # GUI runs until user closes window
+    # after GUI is closed, close all files
     Idx1.close()
     Idx2.close()
     Idx3.close()
     LinksTxt.close()
-
 
 if __name__ == "__main__":
     Gui()
