@@ -132,17 +132,6 @@ def Search(Idx1, Idx2, Idx3, links, IndexofIndex, links_len, ps, query, returnLa
         if (n <= 0):
             break
     
-
-    # # for multi queries do we want to use the sum scores of each term in the docid, we do each docid at a time
-    # intercept_posting = min(List_of_Postings, key=len)
-    # final_posting = intercept_posting
-    # for data_tup in intercept_posting:
-    #     for posting in List_of_Postings:
-    #         if data_tup not in posting:
-    #             final_posting.remove(data_tup)
-    #             break
-
-    # 
     if (len(max_heap_cos)) == 0 and n <= 0:
         urls = "No matches found for query\n"
     else:
@@ -155,15 +144,9 @@ def Search(Idx1, Idx2, Idx3, links, IndexofIndex, links_len, ps, query, returnLa
             urls += str(links[tf_id[1]]) + "\n"
 
     urls += "Time: " + str(time.time() - start_time)
-    #print("Time: ", time.time() - start_time)
     returnLabel["bg"] = "lightgrey"
     returnLabel["text"] = urls
-    return returnLabel
-    
-    # print(time.time() - start_time)
-
-    
-    
+    return returnLabel 
 
 def Gui():
     Idx1 = open("IndexPart1.txt", "r")
@@ -189,9 +172,7 @@ def Gui():
     with open("TotalLinks.txt", "r") as TotalL:
         links_len = int(TotalL.readline())
 
-    # example term,2060|0.0033003300330033004;333|0.000333 
     ps = PorterStemmer()
-
     root = Tk()
     
     root.title("Search Engine")
