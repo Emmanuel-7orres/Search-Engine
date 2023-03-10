@@ -37,10 +37,11 @@ def Search(Idx1, Idx2, Idx3, links, IndexofIndex, links_len, ps, query, returnLa
     q_count = defaultdict(int) # dictionary holding counts for each query term, reminder to count stemmed q terms
 
     # stem or dont stem
+    
     for i in range(len(queryList)):
         if len(IndexofIndex[queryList[i]]) < len(IndexofIndex[ps.stem(queryList[i])]):
             queryList[i] = ps.stem(queryList[i])
-        
+
     for q in queryList:
         # find all seek positions for each part for the query term
         Seek_position_part1 = find_seek_pos(IndexofIndex, q, "1") 
@@ -76,7 +77,7 @@ def Search(Idx1, Idx2, Idx3, links, IndexofIndex, links_len, ps, query, returnLa
             documentScore[docid][q] = tf_id_tup[0]
         
         if (len(top_k_posting) == 0):
-            print("There are no links with the query: ", q)
+            #print("There are no links with the query: ", q)
             # will need to fix this so that if we dont find lopes we can go to next closest thing
             continue
         
@@ -102,8 +103,7 @@ def Search(Idx1, Idx2, Idx3, links, IndexofIndex, links_len, ps, query, returnLa
     max_heap_cos = []
 
     n = len(queryList) # n is requirement of terms in docid for ex n = 4, means 4/4 terms must be in docid        
-
-    while (len(max_heap_cos) <= 5):
+    while (len(max_heap_cos) <= 5 ):
         for DocId in documentScore: # eachDocId is a dictionary with term -> tf
             eachDocId = documentScore[DocId]
             if len(eachDocId.keys()) != n:
@@ -129,10 +129,8 @@ def Search(Idx1, Idx2, Idx3, links, IndexofIndex, links_len, ps, query, returnLa
             heapq.heappush(max_heap_cos, (-eachDocId_score, DocId))
 
         n -= 1
-
-        if (len(max_heap_cos)) == 0 and n == 0:
+        if (n <= 0):
             break
-
     
 
     # # for multi queries do we want to use the sum scores of each term in the docid, we do each docid at a time
@@ -144,9 +142,9 @@ def Search(Idx1, Idx2, Idx3, links, IndexofIndex, links_len, ps, query, returnLa
     #             final_posting.remove(data_tup)
     #             break
 
-    
-    if (len(max_heap_cos)) == 0 and n == 0:
-        urls = "no matches found for query\n"
+    # 
+    if (len(max_heap_cos)) == 0 and n <= 0:
+        urls = "No matches found for query\n"
     else:
         
         n = 5 if len(max_heap_cos) >= 5 else len(max_heap_cos)
@@ -157,7 +155,7 @@ def Search(Idx1, Idx2, Idx3, links, IndexofIndex, links_len, ps, query, returnLa
             urls += str(links[tf_id[1]]) + "\n"
 
     urls += "Time: " + str(time.time() - start_time)
-    print("Time: ", time.time() - start_time)
+    #print("Time: ", time.time() - start_time)
     returnLabel["bg"] = "lightgrey"
     returnLabel["text"] = urls
     return returnLabel
@@ -206,12 +204,14 @@ def Gui():
 
     returnLabel = Label(root, bg='grey', font=('arial', 10,'bold'))
     searchButton = Button(root,text="Search", bg='lightgrey', command=lambda :Search(Idx1, Idx2, Idx3, links, IndexofIndex, links_len, ps, EnterQuery.get().lower(), returnLabel))
-    
 
     Querylabel.grid(row=0,column=0, sticky="NSEW")
     EnterQuery.grid(padx=10, row=0, column=1, sticky="NSEW")
     searchButton.grid(row=0, column=2, sticky="NSEW")
     returnLabel.grid(row=1, column=1, sticky="NSEW")
+    root.grid_rowconfigure(0, weight=0)
+    root.grid_rowconfigure(1, weight=1)
+    root.grid_columnconfigure(1, weight=1)
     
     root.mainloop()
     Idx1.close()
