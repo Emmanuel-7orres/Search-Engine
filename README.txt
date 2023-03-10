@@ -1,3 +1,4 @@
+Lead Developers:
 Michael Yeung myeung2 71598323
 Benjamin Wu benjaw5 56557426
 Emmanuel Torres emmanut2 86389388
