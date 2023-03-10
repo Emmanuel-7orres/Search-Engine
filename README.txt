@@ -1,7 +1,7 @@
 Lead Developers:
-Michael Yeung myeung2 71598323
-Benjamin Wu benjaw5 56557426
-Emmanuel Torres emmanut2 86389388
+Michael Yeung 
+Benjamin Wu 
+Emmanuel Torres 
 
 README.txt  file describing how to use the software (i.e. at least: how to run the code that creates the index, how to start the search interface and how to perform a simple query). 
 
