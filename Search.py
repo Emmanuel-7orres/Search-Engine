@@ -66,11 +66,10 @@ def Search():
 
         # stem or dont stem
         for i in range(len(queryList)):
-            if len(IndexofIndex[queryList[i]]) == 0:
+            if len(IndexofIndex[queryList[i]]) < len(IndexofIndex[ps.stem(queryList[i])]):
                 queryList[i] = ps.stem(queryList[i])
             
         for q in queryList:
-            print(q)
             # find all seek positions for each part for the query term
             Seek_position_part1 = find_seek_pos(IndexofIndex, q, "1") 
             Seek_position_part2 = find_seek_pos(IndexofIndex, q, "2") 
@@ -92,10 +91,10 @@ def Search():
             len_postings = len(posting)
             top_k_posting = []
             k = 0
-            if len(posting) < 100:
+            if len(posting) < 200:
                 k = len(posting)
             else:
-                k = 100
+                k = 200
             for i in range(k):
                 tf_id_tup = heapq.heappop(posting)
                 tf_id_tup = (tf_id_tup[0]*-1, tf_id_tup[1])
@@ -121,9 +120,7 @@ def Search():
             queryScore[q] = Tf_idf
 
             
-            # can do this later to optimize, when doing interception you want the docid to be sorted in order so that the intercep is faster
 
-        print(documentScore)
         # Get query length for normalization
         all_scores = queryScore.values()
         query_length = 0
@@ -133,43 +130,42 @@ def Search():
 
         #cosine similarity score for each docid
         max_heap_cos = []
-        #heapq.heappush(posting, max_heap_tup)
-        for DocId in documentScore: # eachDocId is a dictionary with term -> tf
-            eachDocId = documentScore[DocId]
-            # Get document length for normalization
-            all_scores = eachDocId.values()
-            if len(queryList) != 1:
-                doc_length = 0
-                for score in all_scores:
-                    doc_length += score*score
-                doc_length = math.sqrt(doc_length)
-            else:
-                 doc_length = 1
-            
-            #print(DocId)
-            #print("QUERY LENGTH: ", query_length, "DOC LENGTH: ", doc_length)
-            
-            eachDocId_score = 0
-            
-            for q in queryScore:
-                #print("QUERYSCORE[q]: " , queryScore[q])
-                #print(f"documentScore[{DocId}][q]: " , documentScore[DocId][q])
-                q_score = queryScore[q]/query_length
-                d_score = documentScore[DocId][q]/doc_length
-                #print("Q SCORE: ", q_score, "d_SCORE: ", d_score)
-                cos_score = q_score*d_score
-                #print("COS SCORE", cos_score)
-                eachDocId_score += cos_score
-            #print(eachDocId_score)
-            heapq.heappush(max_heap_cos, (-eachDocId_score, DocId))
 
-        #print(max_heap_cos)
+        n = len(queryList) # n is requirement of terms in docid for ex n = 4, means 4/4 terms must be in docid        
+
+        while (len(max_heap_cos) <= 5):
+            for DocId in documentScore: # eachDocId is a dictionary with term -> tf
+                eachDocId = documentScore[DocId]
+                if len(eachDocId.keys()) != n:
+                    continue
+                # Get document length for normalization
+                all_scores = eachDocId.values()
+
+                if n != 1:
+                    doc_length = 0
+                    for score in all_scores:
+                        doc_length += score*score
+                    doc_length = math.sqrt(doc_length)
+                else:
+                    doc_length = 1
+                
+                
+                eachDocId_score = 0
+                
+                for q in queryScore:
+                    q_score = queryScore[q]/query_length
+                    d_score = documentScore[DocId][q]/doc_length
+                    cos_score = q_score*d_score
+                    eachDocId_score += cos_score
+                heapq.heappush(max_heap_cos, (-eachDocId_score, DocId))
+
+
+            n -= 1
     
 
 
-        if (len(max_heap_cos)) == 0:
-            print("no matches found for query")
-            continue
+            if (len(max_heap_cos)) == 0 and n == 0:
+                break
 
         
 
@@ -183,18 +179,18 @@ def Search():
         #             break
 
 
-        
+        if (len(max_heap_cos)) == 0 and n == 0:
+            print("no matches found for query")
+        else:
+            print("Top 5 results for", query + ":\n")
+            n = 5 if len(max_heap_cos) >= 5 else len(max_heap_cos)
+            for i in range(n):
+                tf_id = heapq.heappop(max_heap_cos)
+                tf_id = (-tf_id[0], tf_id[1])
+                print(links[tf_id[1]])
 
-        print("Top 5 results for", query + ":\n")
-        n = 5 if len(max_heap_cos) >= 5 else len(max_heap_cos)
-        for i in range(n):
-            tf_id = heapq.heappop(max_heap_cos)
-            tf_id = (-tf_id[0], tf_id[1])
-            print(tf_id)
-            print(links[tf_id[1]])
-
-        if n != 5:
-            print(f"There are only {n} results based on the corpus")
+            if n != 5:
+                print(f"There are only {n} results based on the corpus")
         
         print(time.time() - start_time)
         
